@@ -1,6 +1,6 @@
 # Sign-Language-Detection-YOLOv5
-A real-time sign language detection model using YOLOv5 and PyTorch. Capable of recognizing the ASL alphabet from a webcam feed
-Real-Time Sign Language Detection with YOLOv5
+A real-time sign language detection model using YOLOv5 and PyTorch. Capable of recognizing the ASL alphabet from a webcam feed.
+
 This project is a computer vision application that uses the YOLOv5 model to detect and recognize American Sign Language (ASL) gestures in real-time from a webcam feed.
 
 <!-- You can add a GIF of your project working here later -->
