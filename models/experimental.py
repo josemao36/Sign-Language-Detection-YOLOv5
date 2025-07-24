@@ -1,15 +1,14 @@
-# YOLOv5 🚀 by Ultralytics, GPL-3.0 license
+# Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
 """
 Experimental modules
 """
 import math
-
-import numpy as np
+import platform
+import pathlib
 import torch
 import torch.nn as nn
 
 from utils.downloads import attempt_download
-
 
 class Sum(nn.Module):
     # Weighted sum of 2 or more layers https://arxiv.org/abs/1911.09070
@@ -34,7 +33,7 @@ class Sum(nn.Module):
 
 class MixConv2d(nn.Module):
     # Mixed Depth-wise Conv https://arxiv.org/abs/1907.09595
-    def __init__(self, c1, c2, k=(1, 3), s=1, equal_ch=True):  # ch_in, ch_out, kernel, stride, ch_strategy
+    def __init__(self, c1, c2, k=(1, 3), s=1, equal_ch=True):
         super().__init__()
         n = len(k)  # number of convolutions
         if equal_ch:  # equal c_ per group
@@ -51,7 +50,7 @@ class MixConv2d(nn.Module):
         self.m = nn.ModuleList([
             nn.Conv2d(c1, int(c_), k, s, k // 2, groups=math.gcd(c1, int(c_)), bias=False) for k, c_ in zip(k, c_)])
         self.bn = nn.BatchNorm2d(c2)
-        self.act = nn.SiLU()
+        self.act = nn.LeakyReLU(0.1, inplace=True)
 
     def forward(self, x):
         return self.act(self.bn(torch.cat([m(x) for m in self.m], 1)))
@@ -74,9 +73,15 @@ def attempt_load(weights, device=None, inplace=True, fuse=True):
     # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
     from models.yolo import Detect, Model
 
+    # === FIX FOR POSIXPATH ERROR ON WINDOWS ===
+    if platform.system() == 'Windows':
+        temp = pathlib.PosixPath
+        pathlib.PosixPath = pathlib.WindowsPath
+    # ============================================
+
     model = Ensemble()
     for w in weights if isinstance(weights, list) else [weights]:
-        ckpt = torch.load(attempt_download(w), map_location='cpu')  # load
+        ckpt = torch.load(attempt_download(w), map_location='cpu', weights_only=False)  # load with weights_only=False
         ckpt = (ckpt.get('ema') or ckpt['model']).to(device).float()  # FP32 model
 
         # Model compatibility updates
@@ -87,7 +92,7 @@ def attempt_load(weights, device=None, inplace=True, fuse=True):
 
         model.append(ckpt.fuse().eval() if fuse and hasattr(ckpt, 'fuse') else ckpt.eval())  # model in eval mode
 
-    # Module compatibility updates
+    # Module updates
     for m in model.modules():
         t = type(m)
         if t in (nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6, nn.SiLU, Detect, Model):
